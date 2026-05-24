@@ -3,38 +3,40 @@
   "checkpoint_id": "046245fb4905",
   "session_id": "a3114506-957b-40e1-9313-b3a206eb9ce7",
   "strategy": "manual-commit",
-  "created_at": "2026-05-24T20:40:30.797902Z",
+  "created_at": "2026-05-24T20:45:16.401173Z",
   "branch": "fix/bundle-macos-updater-script-in-crate",
   "checkpoints_count": 0,
   "files_touched": [
+    ".github/workflows/ci.yml",
     "crates/core/src/bin/commands/update.rs",
-    ".github/workflows/ci.yml"
+    "scripts/macos-bundle-swap-e2e-stub.c",
+    "scripts/macos-bundle-swap-e2e.sh"
   ],
   "agent": "Claude Code",
   "model": "",
-  "turn_id": "17925bf9656d",
-  "checkpoint_transcript_start": 122,
-  "transcript_lines_at_start": 122,
+  "turn_id": "3ba82cd1bb3f",
+  "checkpoint_transcript_start": 198,
+  "transcript_lines_at_start": 198,
   "token_usage": {
-    "input_tokens": 21,
-    "cache_creation_tokens": 41223,
-    "cache_read_tokens": 1279931,
-    "output_tokens": 15320,
-    "api_call_count": 12
+    "input_tokens": 9,
+    "cache_creation_tokens": 6798,
+    "cache_read_tokens": 519728,
+    "output_tokens": 5137,
+    "api_call_count": 4
   },
   "session_metrics": {
-    "turn_count": 1
+    "turn_count": 2
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-24T20:40:30.788552Z",
-    "agent_lines": 57,
+    "calculated_at": "2026-05-24T20:45:16.388973Z",
+    "agent_lines": 0,
     "agent_removed": 0,
-    "human_added": 128,
-    "human_modified": 0,
+    "human_added": 109,
+    "human_modified": 38,
     "human_removed": 0,
-    "total_committed": 185,
-    "total_lines_changed": 313,
-    "agent_percentage": 18.210862619808307,
+    "total_committed": 109,
+    "total_lines_changed": 272,
+    "agent_percentage": 0,
     "metric_version": 2
   },
   "prompt_attributions": [

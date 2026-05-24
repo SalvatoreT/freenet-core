@@ -6,7 +6,9 @@
   "checkpoints_count": 0,
   "files_touched": [
     ".github/workflows/ci.yml",
-    "crates/core/src/bin/commands/update.rs"
+    "crates/core/src/bin/commands/update.rs",
+    "scripts/macos-bundle-swap-e2e-stub.c",
+    "scripts/macos-bundle-swap-e2e.sh"
   ],
   "sessions": [
     {
@@ -17,10 +19,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 21,
-    "cache_creation_tokens": 41223,
-    "cache_read_tokens": 1279931,
-    "output_tokens": 15320,
-    "api_call_count": 12
+    "input_tokens": 9,
+    "cache_creation_tokens": 6798,
+    "cache_read_tokens": 519728,
+    "output_tokens": 5137,
+    "api_call_count": 4
   }
 }
