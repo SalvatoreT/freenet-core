@@ -1,0 +1,23 @@
+Task: Fix `cargo install freenet --version 0.2.61` (and any later version) failing to build from crates.io due to a missing script file.
+What's broken
+`crates/core/src/bin/commands/update.rs:1555` has:
+
+```rust
+const SCRIPT: &str = include_str!("../../../../../scripts/macos-bundle-updater.sh");
+
+```
+
+From that file's location, `../../../../../scripts/…` walks out of the freenet crate root and resolves to `<workspace-root>/scripts/macos-bundle-updater.sh`. That path works in a checkout of the workspace, but `cargo publish` only bundles files inside the crate directory — so when freenet is downloaded from crates.io, the script is missing and `cargo build` fails with an `include_str!` "file not found" error.
+Reproduce locally: `cargo install freenet --version 0.2.61` on macOS — it errors during compile pointing at that `include_str!` line.
+This blocks the River project's `cargo make sign-webapp` flow (River shells out to `cargo install freenet` to get `fdev`), and likely blocks anyone else installing freenet from the registry rather than from source.
+Fix
+Move `scripts/macos-bundle-updater.sh` to live inside the freenet crate so `cargo publish` bundles it. Suggested destination: `crates/core/scripts/macos-bundle-updater.sh`. Then update the `include_str!` path in `update.rs` to match the new relative location (it'll be much shorter — likely `../../../scripts/macos-bundle-updater.sh` from `src/bin/commands/update.rs`).
+If anything else in the workspace references the old workspace-root path (CI scripts, Makefile, release tooling, the binstall manifest, docs), update those too — `rg 'scripts/macos-bundle-updater\.sh'` to find them all.
+Verify
+
+1. `cargo package --list -p freenet | rg macos-bundle-updater` must show the script's path inside the package contents.
+2. `cargo install --path crates/core --force` must compile cleanly on macOS.
+3. Existing test that runs the updater (if any — `rg -l macos-bundle-updater crates/core/tests/` to find it) should still pass.
+4. `cargo build -p freenet --release` must still pass on Linux and macOS (the `#[cfg(target_os = "macos")]` gate around `write_updater_script` should keep Linux green either way, but confirm).
+Then
+Open a PR titled something like `fix(release): bundle macos-bundle-updater.sh inside freenet crate so cargo install works`. In the description, mention this unblocks `cargo install freenet` from crates.io and link to wherever upstream tracks this if there's already an issue. Cut a `0.2.62` patch release once merged so downstreams (River specifically) can stop vendoring around this.

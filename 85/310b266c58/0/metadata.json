@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "85310b266c58",
+  "session_id": "a3114506-957b-40e1-9313-b3a206eb9ce7",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-24T20:30:55.846213Z",
+  "branch": "fix/bundle-macos-updater-script-in-crate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "crates/core/src/bin/commands/update.rs",
+    "scripts/macos-bundle-swap-e2e.sh",
+    "scripts/macos-bundle-swap-e2e-stub.c"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "f31755173194",
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 79068,
+    "cache_read_tokens": 1599690,
+    "output_tokens": 8857,
+    "api_call_count": 25
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-24T20:30:55.83994Z",
+    "agent_lines": 4,
+    "agent_removed": 4,
+    "human_added": 125,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 129,
+    "total_lines_changed": 258,
+    "agent_percentage": 3.10077519379845,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 88,
+      "user_lines_removed": 8,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.json": 88
+      },
+      "user_removed_per_file": {
+        ".claude/settings.json": 8
+      }
+    }
+  ]
+}

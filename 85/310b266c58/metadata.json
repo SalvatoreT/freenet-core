@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "85310b266c58",
+  "strategy": "manual-commit",
+  "branch": "fix/bundle-macos-updater-script-in-crate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "crates/core/src/bin/commands/update.rs",
+    "scripts/macos-bundle-swap-e2e-stub.c",
+    "scripts/macos-bundle-swap-e2e.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/85/310b266c58/0/metadata.json",
+      "transcript": "/85/310b266c58/0/full.jsonl",
+      "content_hash": "/85/310b266c58/0/content_hash.txt",
+      "prompt": "/85/310b266c58/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 79068,
+    "cache_read_tokens": 1599690,
+    "output_tokens": 8857,
+    "api_call_count": 25
+  }
+}
