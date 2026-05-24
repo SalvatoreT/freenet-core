@@ -1,1 +1,221 @@
-Yes
+<task-notification>
+<task-id>a474d80588d8f5260</task-id>
+<tool-use-id>toolu_01VQeRwJF61YtARW9HNFZu3o</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-sal-Developer-freenet-core/a3114506-957b-40e1-9313-b3a206eb9ce7/tasks/a474d80588d8f5260.output</output-file>
+<status>completed</status>
+<summary>Agent "Testing review" completed</summary>
+<result>Good. I have everything I need.
+
+---
+
+## Testing Review: PR #4240
+
+### Coverage Summary
+- Direct changes: **covered** (Rust `#[test]` + CI packaging gate)
+- Downstream impact: **covered** for the *exact* file, **partial** for the *class*
+
+### Assessment of the two added tests
+
+**1. Rust `#[test]` `embedded_updater_script_resolves_inside_freenet_crate` (`crates/core/src/bin/commands/update.rs:1753`).** Adds essentially zero coverage over what `cargo check` already guarantees. The production call site at line 1555 already `include_str!`s the same path; if the file disappears, compilation fails crate-wide before the test is ever run. The header-marker assertion at runtime is the only marginal value (catches a refactor that swaps in a placeholder file). It is cheap and harmless — keep it, but it is **not** the assertion that catches the actual bug class.
+
+**2. CI step in `fmt_check` (`.github/workflows/ci.yml:155-176`).** This is the load-bearing test. It runs `cargo package --list -p freenet` and greps for the required file. It tests the **exact boundary** that broke 0.2.61 — what `cargo publish` decides to bundle. It would have caught the regression.
+
+### Gaps
+
+#### Important (should have)
+- **Does not actually build the produced tarball.** `cargo package --list` reports what would be included; it does not detect a different failure mode where the file is in the tarball but the `include_str!` path inside the source no longer points at the copy that got bundled (e.g. someone moves the script and forgets to update the source). A stronger gate runs `cargo package -p freenet` (no `--list`) and then `cargo build --offline` inside the extracted `.crate` — that is what crates.io actually does. The cost is ~1-2 min of CI per PR; for a release-blocker bug class this is defensible. Suggested addition in `.github/workflows/ci.yml` after the existing step.
+- **`required=()` array is not auto-maintained.** A future `include_str!("../../some-other-thing.txt")` in `crates/core/src/` would silently slip the same trap; only `scripts/macos-bundle-updater.sh` is asserted. Concrete extension: greppable rule in `rule_lint` that scans `crates/core/src/**/*.rs` for `include_str!` / `include_bytes!` literals containing `../../../` (escaping the crate root, since `crates/core/src/` is two `..`s to the crate root) and fails with a pointer to this PR. That auto-populates the `required` list and prevents future regressions of the same class.
+
+#### Nice to have
+- Audit of remaining call sites: I scanned every `include_str!`/`include_bytes!` in `crates/core/`. All others are intra-crate (e.g. `include_str!("op_ctx_task.rs")`, `include_bytes!("assets/freenet_256x256.rgba")` at `crates/core/src/bin/commands/tray.rs:305`) and stay inside the crate. `build.rs` only reads `Cargo.toml` via `CARGO_MANIFEST_DIR`. No other latent offenders.
+
+### CI Considerations
+The added `cargo package --list` step runs in `fmt_check` on a GitHub-hosted runner with no Rust toolchain caching beyond what the job already loads. `cargo package` does run the full manifest-resolution + verify step by default — that means it compiles. Worth confirming `--list` short-circuits the verify; if not, this adds noticeable time to a job billed as "fast checks". If it does add time, pass `--no-verify`. (Verify is redundant here since downstream Test jobs build the same code.)
+
+### Relevant file references
+- `/Users/sal/Developer/freenet-core/crates/core/src/bin/commands/update.rs:1551-1565` (production `include_str!`)
+- `/Users/sal/Developer/freenet-core/crates/core/src/bin/commands/update.rs:1752-1764` (new test)
+- `/Users/sal/Developer/freenet-core/.github/workflows/ci.yml:151-176` (new CI step)
+- `/Users/sal/Developer/freenet-core/crates/core/build.rs` (clean — no workspace-root reads)
+- `/Users/sal/Developer/freenet-core/crates/core/Cargo.toml:8,10` (`license-file`/`readme` both resolve inside crate)</result>
+<usage><total_tokens>82203</total_tokens><tool_uses>28</tool_uses><duration_ms>119842</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3635d60d86993e6e</task-id>
+<tool-use-id>toolu_01FoAnywcFQmXSTkF9Xuuvud</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-sal-Developer-freenet-core/a3114506-957b-40e1-9313-b3a206eb9ce7/tasks/a3635d60d86993e6e.output</output-file>
+<status>completed</status>
+<summary>Agent "Code-first review" completed</summary>
+<result>Now I have everything I need to write the review.
+
+## Code-First Review: PR #4240
+
+### My Understanding (from code only)
+
+`include_str!` in `crates/core/src/bin/commands/update.rs:1555` previously walked above the crate root into the workspace-level `scripts/` directory. `cargo publish` only tarballs files inside the crate, so the file was absent from the published tarball, breaking `cargo install freenet`. The fix relocates the script to `crates/core/scripts/macos-bundle-updater.sh`, shortens the `include_str!` to `../../../scripts/...` (which from `crates/core/src/bin/commands/update.rs` resolves to `crates/core/scripts/macos-bundle-updater.sh` — verified by walking `..` three times), updates the two `scripts/macos-bundle-swap-e2e*` references, adds a non-macOS `#[test]` that re-`include_str!`s the file plus asserts on its header text, and adds a `fmt_check` CI step that runs `cargo package --list -p freenet` and greps for `scripts/macos-bundle-updater.sh`.
+
+### Discrepancies Found
+
+None of substance. The description is accurate: path move, shortened `include_str!`, two regression tests (unit + packaging), e2e harness updated. One minor nit: the description quotes the pre-fix `include_str!` as walking "five levels up" (`../../../../../`), but I only verified the post-fix path — the diff stat confirms an `include_str!` change consistent with that claim.
+
+### Concerns
+
+1. The unit test at `update.rs:1759` only asserts the script contains the literal string "macOS DMG-swap updater". That string is just a comment on line 1 of the script and could drift; the assertion is fine for regression but is purely a smoke check. The compile-time path resolution is the real load-bearing assertion (test won't compile if the path breaks), so this is fine.
+
+2. The CI step at `.github/workflows/ci.yml:155-176` runs `cargo package --list -p freenet` without `--allow-dirty`. In a fresh PR checkout this should be clean, but if a future contributor extends the step in a context that includes generated files it could fail noisily — not blocking.
+
+3. The CI step is in `fmt_check` (Ubuntu). It exercises the package-listing logic which is platform-agnostic, so this is appropriate — it would have caught 0.2.61.
+
+### Documentation Recommendations
+
+None — the new `#[test]` and CI step both carry self-explanatory comments citing #4240, and the `write_updater_script` rustdoc above already explains the embedding rationale. Both `scripts/macos-bundle-swap-e2e.sh` and `scripts/macos-bundle-swap-e2e-stub.c` were updated to point at `crates/core/scripts/macos-bundle-updater.sh` — no other in-tree references to the old path remain.
+
+Clean PR. Path resolution checks out, both regression tests target the right surface, and the CI gap analysis in the description is accurate.
+
+Relevant absolute paths:
+- `/Users/sal/Developer/freenet-core/crates/core/src/bin/commands/update.rs` (lines 1550-1565, 1752-1764)
+- `/Users/sal/Developer/freenet-core/.github/workflows/ci.yml` (lines 151-176)
+- `/Users/sal/Developer/freenet-core/crates/core/scripts/macos-bundle-updater.sh`
+- `/Users/sal/Developer/freenet-core/scripts/macos-bundle-swap-e2e.sh`
+- `/Users/sal/Developer/freenet-core/scripts/macos-bundle-swap-e2e-stub.c`</result>
+<usage><total_tokens>43411</total_tokens><tool_uses>30</tool_uses><duration_ms>136189</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac58f1c2bc95e39ae</task-id>
+<tool-use-id>toolu_01KPQcD1Faew1k94zeTqkwpG</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-sal-Developer-freenet-core/a3114506-957b-40e1-9313-b3a206eb9ce7/tasks/ac58f1c2bc95e39ae.output</output-file>
+<status>completed</status>
+<summary>Agent "Big-picture review" completed</summary>
+<result>Enough context. Now I'll write the report.
+
+---
+
+## Big Picture Review: PR #4240
+
+### Goal Alignment
+
+- **Stated goal:** Fix `cargo install freenet` regression (broken since 0.2.61 because `update.rs` `include_str!`s a script outside the crate root). Move the script inside `crates/core/`, update path and tooling, add regression coverage.
+- **Implementation matches:** Yes, end-to-end.
+  - Script moved: `/Users/sal/Developer/freenet-core/crates/core/scripts/macos-bundle-updater.sh` (confirmed by Glob; old root path is gone).
+  - `include_str!` path is now `"../../../scripts/macos-bundle-updater.sh"` at `crates/core/src/bin/commands/update.rs:1555` — relative to that file, that resolves to `crates/core/scripts/...` (inside the crate).
+  - E2E harness updated to point at the new location: `scripts/macos-bundle-swap-e2e.sh:29` (`UPDATER="$REPO_ROOT/crates/core/scripts/macos-bundle-updater.sh"`).
+  - Compile-time + runtime regression test at `crates/core/src/bin/commands/update.rs:1752-1764` — also runs on non-macOS because it's outside the `#[cfg(target_os = "macos")]` block.
+  - CI gate added in `.github/workflows/ci.yml:151-176` runs `cargo package --list -p freenet` and `grep -qFx scripts/macos-bundle-updater.sh`.
+
+No scope creep, no goal gap.
+
+### Removed Code / Anti-Pattern Detection
+
+- No tests ignored, weakened, deleted, or stubbed. No assertion loosening.
+- The regression test in `update.rs:1752` is genuinely teeth-bearing: an include_str! that walks outside the crate would also resolve at compile time, so the test's real load-bearing piece is the runtime substring `"macOS DMG-swap updater"` — that catches a future move that compiles but ships the wrong file. The CI step uses `grep -qFx` (exact-line match), so a substring near-miss would still fail. Both halves are real, not ceremonial.
+- One small **scope gap**: the CI gate hardcodes a single filename. A second `include_str!` that walks outside the crate later would not be caught. Acceptable for a targeted patch, but consider generalising in a follow-up to scan all `include_str!`/`include_bytes!` literals in `crates/core/src` and require each referenced path resolve under the crate root.
+
+### AI Instructions
+
+- `.claude/rules/deployment.md` — packaging is not addressed; nothing contradicted.
+- `.claude/rules/git-workflow.md` — stdlib-first policy not relevant (no stdlib change).
+- `crates/core/CLAUDE.md` — contains no rule about `include_str!`/embedded resources. **Worth adding** a "WHEN embedding files via `include_str!`/`include_bytes!`" rule that requires the path to resolve inside the crate (so `cargo publish` bundles it) and references this PR + CI gate. This is the kind of bug-prevention pattern that `.claude/rules/bug-prevention-patterns.md` is for; that file is a good alternate home.
+- `AGENTS.md` and `CLAUDE.md` — neither references the old `scripts/macos-bundle-updater.sh` path; nothing to update there.
+- **One stale comment to fix** (not blocking): `.github/workflows/macos-dmg-swap-e2e.yml:3` reads "scripts/macos-bundle-updater.sh" in its header comment. The job itself runs `scripts/macos-bundle-swap-e2e.sh` (correct), but the doc comment should say `crates/core/scripts/macos-bundle-updater.sh` for consistency.
+
+### Release-tooling Implications
+
+- `docs/RELEASING.md` is unaffected. The release pipeline triggers `gh workflow run release.yml` which runs `cargo publish` — the new CI gate runs `cargo package --list` on every PR, so a regression of this class is caught pre-merge rather than post-publish. The 0.2.63 patch release is the right next step; `min-compatible-version = "0.2.61"` in `crates/core/Cargo.toml:16` does not need to move.
+
+### Bigger-picture Concerns
+
+- Convention question: placing build/CI helper scripts at workspace root vs. crate-embedded runtime resources at `crates/&lt;crate&gt;/scripts/` is a meaningful split — the former are CI tooling (`package-macos.sh`, `release.sh`), the latter are shipped to users via cargo. The PR makes the split correctly but does not document it. A short note in `crates/core/CLAUDE.md` ("WHEN adding scripts: runtime resources embedded via `include_str!` live in `crates/core/scripts/`; build/CI tooling stays in workspace `scripts/`") would prevent a future contributor from reverting this on instinct.
+
+### Strategic Assessment
+
+Solid fix-with-prevention pattern. The PR is narrowly scoped, every change directly serves the stated goal, no tests are weakened, and the regression gate has real assertions. The most valuable follow-up is documenting the new convention so future contributors and AI agents don't unknowingly recreate the bug.
+
+### Recommendations
+
+1. Land as-is for the patch release.
+2. Follow-up (not blocking): add a rule to `crates/core/CLAUDE.md` or `.claude/rules/bug-prevention-patterns.md` documenting the embedded-resource convention; cite this PR + the CI gate.
+3. Follow-up (not blocking): update the stale comment at `/Users/sal/Developer/freenet-core/.github/workflows/macos-dmg-swap-e2e.yml:3` to reference the new path.
+4. Optional: generalise the CI gate to scan all `include_str!`/`include_bytes!` paths instead of a hardcoded allowlist.
+
+Key files reviewed:
+- /Users/sal/Developer/freenet-core/crates/core/src/bin/commands/update.rs
+- /Users/sal/Developer/freenet-core/crates/core/scripts/macos-bundle-updater.sh
+- /Users/sal/Developer/freenet-core/scripts/macos-bundle-swap-e2e.sh
+- /Users/sal/Developer/freenet-core/.github/workflows/ci.yml
+- /Users/sal/Developer/freenet-core/.github/workflows/macos-dmg-swap-e2e.yml
+- /Users/sal/Developer/freenet-core/crates/core/Cargo.toml
+- /Users/sal/Developer/freenet-core/docs/RELEASING.md
+- /Users/sal/Developer/freenet-core/.claude/rules/deployment.md
+- /Users/sal/Developer/freenet-core/crates/core/CLAUDE.md
+- /Users/sal/Developer/freenet-core/AGENTS.md</result>
+<usage><total_tokens>126078</total_tokens><tool_uses>74</tool_uses><duration_ms>280033</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a9fe3ca73e4a53261</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-sal-Developer-freenet-core/a3114506-957b-40e1-9313-b3a206eb9ce7/tasks/a9fe3ca73e4a53261.output</output-file>
+<status>completed</status>
+<summary>Agent "Skeptical review" completed</summary>
+<result>Most are siblings (inside crate). The only one that walks (`../../../`) is the updater script. The rest are `../` or `../../` within the crate — safe.
+
+I have enough. Final review.
+
+---
+
+## Skeptical Review: PR #4240 (fix/bundle-macos-updater-script-in-crate)
+
+### Potential Bugs Found
+
+#### High Severity
+None blocking. The fix is structurally sound and the executable bit is preserved (`100755` blob `0092425…` in both old and new tree entries).
+
+#### Medium Severity
+
+**1. The new unit test is partially dead-weight on macOS hosts.** `crates/core/src/bin/commands/update.rs:1752-1764` — on macOS, the function `write_updater_script` at line 1553 already compiles with the same `include_str!("../../../scripts/...")` path (line 1555), so the test contributes nothing the existing build doesn't already do. Its only real value is on non-macOS CI (Linux/Windows), where the production `write_updater_script` is gated out by `#[cfg(target_os = "macos")]`. That value is real, but the test name and PR description oversell it: a path regression on a macOS dev box would also break compilation of line 1555, no test needed. The `SCRIPT.contains("macOS DMG-swap updater")` assertion at line 1761 will never fire as a runtime failure — if `include_str!` resolves successfully, the file is the right one (the constant is the script body, not a path lookup). Recommend keeping but downgrade the "asserts shape" claim — this is purely a *compile-time* regression pin.
+
+**2. The CI gate is one-way only.** `.github/workflows/ci.yml:155-176` checks that `scripts/macos-bundle-updater.sh` is in `cargo package --list`, but does **not** check that any new `include_str!`/`include_bytes!` path also resolves inside the crate. A future contributor adding `include_bytes!("../../../../assets/foo.png")` to ship a new resource would reintroduce the bug class invisibly to this gate. The `required=()` array (line 158-160) is a hardcoded allowlist — every new embedded resource has to be remembered. A stronger gate would `grep -r 'include_str!\|include_bytes!' crates/core/src/` and assert every relative path resolves to a tracked file inside `crates/core/`. As written, the gate guards exactly one file.
+
+**3. `fmt_check` job timeout is tight.** `.github/workflows/ci.yml:87` — `timeout-minutes: 5`. Previously the job ran `cargo fmt --check` + cheap bash. Adding `cargo package --list -p freenet` performs dep-graph resolution and may hit crates.io for a cold lockfile. On a slow runner / cold cache this can take 30-60s by itself, leaving a thin margin. Not broken today, but it's a step away from intermittent failures from a job that was previously bulletproof.
+
+#### Low Severity
+
+**4. Stale documentation pointer.** `.github/workflows/macos-dmg-swap-e2e.yml:3-4` still says "scripts/macos-bundle-updater.sh + surrounding logic" in the file-level comment. Cosmetic; the actual script invocation on line 51 still works because `scripts/macos-bundle-swap-e2e.sh` is unchanged.
+
+**5. Line-ending hazard not addressed.** `/Users/sal/Developer/freenet-core/.gitattributes` has no `*.sh text eol=lf` rule. A Windows contributor with `core.autocrlf=true` could check the script in with CRLF, breaking `#!/bin/bash\r` at runtime on macOS users' machines. Pre-existing issue, not introduced here, but the rename is the moment to fix it.
+
+**6. The `set -eu` block in the CI step has no `pipefail`.** `.github/workflows/ci.yml:157` — `package_list=$(cargo package --list -p freenet)` would mask a non-zero exit from cargo only if it's inside a pipe, which it isn't. Currently safe; mention only because `set -eu` without `pipefail` is a footgun if the line is later piped through `grep`/`sort`.
+
+### Questions for Author
+
+- Is there a reason the CI gate is only checking one file rather than enumerating all `include_str!`/`include_bytes!` sites in `crates/core/`? The bug class generalizes; the gate doesn't.
+- Why is the new test left ungated (not `#[cfg(target_os = "macos")]`)? That's actually the right choice — but the rationale on lines 1756-1758 should be the load-bearing justification ("re-included here so non-macOS CI also exercises the path"), and that's clearly stated.
+
+### What I Verified
+
+- File mode preserved across rename: `git ls-tree` shows `100755` at both `crates/core/scripts/macos-bundle-updater.sh` (HEAD) and `scripts/macos-bundle-updater.sh` (HEAD~1), blob SHA identical (`0092425…`). No executable bit lost.
+- `cargo package --list -p freenet` outputs paths relative to the crate root; the CI grep matches `scripts/macos-bundle-updater.sh` exactly with `-Fx`, which is correct.
+- No other workflow references the old workspace-root `scripts/macos-bundle-updater.sh` path (only descriptive comment in `macos-dmg-swap-e2e.yml:3`).
+- `scripts/macos-bundle-swap-e2e.sh:32` already validates `-x "$UPDATER"` — if the executable bit were ever lost on the new path, the e2e test fails fast.
+- `crates/core/Cargo.toml` has no `[package].include` allowlist, so default git-tracked inclusion picks up `crates/core/scripts/`.
+- No other `include_str!`/`include_bytes!` in `crates/core/src/` walks outside the crate (all relative paths are `./` or `../*` within `crates/core/src/`).
+
+Relevant files:
+- `/Users/sal/Developer/freenet-core/crates/core/src/bin/commands/update.rs` (lines 1553-1564, 1752-1764)
+- `/Users/sal/Developer/freenet-core/.github/workflows/ci.yml` (lines 84-176)
+- `/Users/sal/Developer/freenet-core/.github/workflows/macos-dmg-swap-e2e.yml` (lines 3-4, 51)
+- `/Users/sal/Developer/freenet-core/scripts/macos-bundle-swap-e2e.sh` (lines 29-32)
+- `/Users/sal/Developer/freenet-core/scripts/macos-bundle-swap-e2e-stub.c` (line 6)
+- `/Users/sal/Developer/freenet-core/crates/core/scripts/macos-bundle-updater.sh`
+- `/Users/sal/Developer/freenet-core/crates/core/Cargo.toml`
+- `/Users/sal/Developer/freenet-core/.gitattributes`</result>
+<usage><total_tokens>75117</total_tokens><tool_uses>70</tool_uses><duration_ms>338774</duration_ms></usage>
+</task-notification>
